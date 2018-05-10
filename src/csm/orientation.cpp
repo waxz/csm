@@ -20,7 +20,8 @@ void ld_compute_orientation(LDP ld, int size_neighbourhood, double sigma) {
 			ld->alpha_valid[i] = 0;
 			continue;
 		}
-		
+
+		// get size_neighbourhood points, get index
 		//int neighbours[size_neighbourhood*2];
 		std::vector<int> neighbours(size_neighbourhood*2, 0);
 		size_t num_neighbours;
@@ -33,6 +34,8 @@ void ld_compute_orientation(LDP ld, int size_neighbourhood, double sigma) {
 			continue;
 		}
 
+		//  mask vector
+
 /*		printf("orientation for i=%d:\n",i); */
 		//double thetas[num_neighbours];
 		std::vector<double> thetas(num_neighbours, 0.0);
@@ -44,6 +47,8 @@ void ld_compute_orientation(LDP ld, int size_neighbourhood, double sigma) {
 			readings[a] = ld->readings[neighbours[a]];
 			/* printf(" j = %d theta = %f rho = %f\n", neighbours[a], thetas[a],readings[a]); */
 		}
+
+
 		
 		double alpha=42, cov0_alpha=32;
 		filter_orientation(ld->theta[i],ld->readings[i],num_neighbours,

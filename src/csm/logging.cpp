@@ -7,9 +7,79 @@
 #include "logging.h"
 #include "csm_all.h"
 #include "utils.h"
+#include <string>
+#include <csm/csm.h>
 
+int plog_write_flag = 0;
 
 int sm_debug_write_flag = 0;
+
+namespace plog
+{
+	Record& operator<<(Record& record, const LDP& ldp) // Implement a stream operator for our type.
+	{
+
+		int n = ldp->nrays;
+		// for each field , create a string
+		// combine at last
+
+		//data to save
+		/*
+		 * point_w.p0
+		 * point_w.p1
+		 * point_w.rho
+		 * point_w.phi
+		 * valid
+		 * corr.j1
+		 * corr.j2
+		 * corr.distj1
+		 * */
+		std::string readings, theta,j1,j2,valid,readings_w, theta_w;
+		char readins_c[10000], thetas_c[10000];
+		char fmt[] = "%.3f,";
+        char fmt2[] = "%d,";
+		std::string temp_s;
+		char temp[6];
+
+		for (int i = 1;i < n; i++){
+			// reading
+			sprintf(temp, fmt, ldp->readings[i]);
+			readings += temp;
+			// theta
+			sprintf(temp, fmt, ldp->theta[i]);
+			theta += temp;
+			// corr j1
+			sprintf(temp, fmt2, ldp->corr[i].j1);
+			j1 += temp;
+			// corr j2
+			sprintf(temp, fmt2, ldp->corr[i].j2);
+			j2 += temp;
+			// valid
+			sprintf(temp, fmt2, ldp->corr[i].valid);
+			valid += temp;
+            // reading_w
+            sprintf(temp, fmt, ldp->points_w[i].rho);
+            readings_w += temp;
+
+            // theta_w
+            sprintf(temp, fmt, ldp->points_w[i].phi);
+            theta_w += temp;
+		}
+
+		std::string out = "readings:(" + readings + ");" +
+						  "theta:("    + theta    + ");" +
+						  "j1:("       + j1       + ");" +
+						  "j2:("       + j2       + ");" +
+				          "valid:("    + valid    + ");" +
+                          "readings_w:(" + readings_w + ");" +
+                          "theta_w:("    + theta_w    + ");" +
+				"END";
+
+		record<<out;
+
+		return  record;
+	}
+}
 
 const char * sm_program_name = 0;
 

@@ -185,7 +185,7 @@ int ld_valid_fields(LDP ld)  {
 	int min_nrays = 10;
 	int max_nrays = 10000;
 	if(ld->nrays < min_nrays || ld->nrays > max_nrays) {
-		sm_error("Invalid number of rays: %d\n", ld->nrays);
+		sm_error("Invalid number of rays: %d, limit:[%d,%d]\n", ld->nrays, min_nrays, max_nrays);
 		return 0;
 	}
 	if(is_nan(ld->min_theta) || is_nan(ld->max_theta)) {
@@ -194,10 +194,10 @@ int ld_valid_fields(LDP ld)  {
 		return 0;
 	}
 	double min_fov = deg2rad(20.0); 
-	double max_fov = 2.01 * M_PI;
+	double max_fov = 3.01 * M_PI; // add max angle
 	double fov = ld->max_theta - ld->min_theta;
 	if( fov < min_fov || fov > max_fov) {
-		sm_error("Strange FOV: %f rad = %f deg \n", fov, rad2deg(fov));
+		sm_error("Strange FOV: %f rad = %f deg, limit:[%f,%f]\n", fov, rad2deg(fov), min_fov, max_fov);
 		return 0;
 	}
 	if(fabs(ld->min_theta - ld->theta[0]) > 1e-8) {
@@ -206,7 +206,7 @@ int ld_valid_fields(LDP ld)  {
 		return 0;
 	}
 	if(fabs(ld->max_theta - ld->theta[ld->nrays-1]) > 1e-8) {
-		sm_error("Min_theta (%f) should be theta[0] (%f)\n",
+		sm_error("Max_theta (%f) should be theta[nrays-1] (%f)\n",
 			ld->max_theta, ld->theta[ld->nrays-1]);
 		return 0;
 	}
@@ -218,7 +218,7 @@ int ld_valid_fields(LDP ld)  {
 		if(ld->valid[i]) {
 			double r = ld->readings[i];
 			if(is_nan(r) || is_nan(th)) {
-				sm_error("Ray #%d: r = %f  theta = %f but valid is %d\n",
+				sm_error("Ray #%d: r = %f  theta = %f is nan, but valid is %d\n",
 					i, r, th, ld->valid[i]);
 				return 0;
 			}
@@ -230,7 +230,7 @@ int ld_valid_fields(LDP ld)  {
 		} else {
 			/* ray not valid, but checking theta anyway */
 			if(is_nan(th)) {
-				sm_error("Ray #%d: valid = %d  but theta = %f\n",
+				sm_error("Ray #%d: valid = %d  but theta = %f nan\n",
 					i,  ld->valid[i], th);
 				return 0;
 			}
@@ -254,8 +254,9 @@ int ld_valid_fields(LDP ld)  {
 	/* Checks that there is at least 10% valid rays */
 	int num_valid   = count_equal(ld->valid, ld->nrays, 1);
 	int num_invalid = count_equal(ld->valid, ld->nrays, 0);
-	if (num_valid < ld->nrays * 0.10) {
-		sm_error("Valid: %d/%d invalid: %d.\n", num_valid, ld->nrays, num_invalid);
+	double valid_percent = 0.1;
+	if (num_valid < ld->nrays * valid_percent) {
+		sm_error("Valid: %d/%d invalid: %d. < valid_percent :%f\n", num_valid, ld->nrays, num_invalid, valid_percent);
 		return 0;
 	}
 

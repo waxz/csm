@@ -108,5 +108,5 @@ install(DIRECTORY src/icp/
         FILES_MATCHING PATTERN "*.h"
         )
 
-add_executable(${PROJECT_NAME}_node src/main.cpp)
+add_executable(${PROJECT_NAME}_node src/main.cpp src/csv_reader/reader.cpp)
 target_link_libraries(${PROJECT_NAME}_node ${PROJECT_NAME} ${catkin_LIBRARIES})

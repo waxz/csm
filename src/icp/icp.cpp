@@ -32,6 +32,10 @@ void sm_icp(struct sm_params*params, struct sm_result*res) {
 
 	LDP laser_ref  = params->laser_ref;
 	LDP laser_sens = params->laser_sens;
+
+    // receive laser_ref and laser_sens
+    // point cnt should in  [10, 10000]
+    // valid point cnt > 10%
 	
 	if(!ld_valid_fields(laser_ref) || 
 	   !ld_valid_fields(laser_sens)) {
@@ -42,7 +46,7 @@ void sm_icp(struct sm_params*params, struct sm_result*res) {
 		count_equal(laser_sens->valid, laser_sens->nrays, 1), laser_sens->nrays,
 		count_equal(laser_ref->valid, laser_ref->nrays, 1), laser_ref->nrays);
 	
-	
+	// no need why??
 	/** Mark as invalid the rays outside of (min_reading, max_reading] */
 	ld_invalid_if_outside(laser_ref, params->min_reading, params->max_reading);
 	ld_invalid_if_outside(laser_sens, params->min_reading, params->max_reading);
@@ -54,13 +58,17 @@ void sm_icp(struct sm_params*params, struct sm_result*res) {
 	
 	egsl_push_named("sm_icp");
 	
-			
+
+	// get up_bigger, up_smaller, down_smaller, down_bigger for each point
 	if(params->use_corr_tricks || params->debug_verify_tricks)
 		ld_create_jump_tables(laser_ref);
-		
+
+	// reading,theta to x,y
 	ld_compute_cartesian(laser_ref);
 	ld_compute_cartesian(laser_sens);
 
+	// Discard correspondences based on the angles
+	// given orientation_neighbourhood: Number of neighbour rays used to estimate the orientation
 	if(params->do_alpha_test) {
 		ld_simple_clustering(laser_ref, params->clustering_threshold);
 		ld_compute_orientation(laser_ref, params->orientation_neighbourhood, params->sigma);
@@ -87,6 +95,7 @@ void sm_icp(struct sm_params*params, struct sm_result*res) {
 	int nvalid;
 	if(!icp_loop(params, x_old->data(), x_new->data(), &error, &nvalid, &iterations)) {
 		sm_error("icp: ICP failed for some reason. \n");
+        LOGI<<"icp: ICP failed for some reason.";
 		res->valid = 0;
 		res->iterations = iterations;
 		res->nvalid = 0;
@@ -141,8 +150,12 @@ void sm_icp(struct sm_params*params, struct sm_result*res) {
 		res->valid = 1;
 		vector_to_array(best_x, res->x);
 		sm_debug("icp: final x =  %s  \n", gsl_friendly_pose(best_x));
-	
-		if (restarted) { // recompute correspondences in case of restarts
+        char res_str[100];
+        sprintf(res_str,"icp: final x =  %s  \n",gsl_friendly_pose(best_x) );
+        LOG_WARNING<<res_str;
+
+
+        if (restarted) { // recompute correspondences in case of restarts
 			ld_compute_world_coords(laser_sens, res->x);
 			if(params->use_corr_tricks)
 				find_correspondences_tricks(params);

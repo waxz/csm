@@ -5,9 +5,9 @@
 #include <gsl_eigen/gsl_eigen.h>
 #include <gpc/gpc.h>
 #include <egsl/egsl_macros.h>
-
 #include "../csm/csm_all.h"
-
+#include <cstdlib>
+#include <ctime>
 #include "icp.h"
 #include <vector>
 
@@ -58,17 +58,28 @@ int icp_loop(struct sm_params*params, const double*q0, double*x_new,
 			egsl_pop_named("icp_loop iteration"); /* loop context */
 			break;
 		}
-
+#if write_log
+        plog_write<LDP>("map_data_ori",params->laser_ref);
+        plog_write<LDP>("laser_data_ori",params->laser_sens);
+#endif
 		/* Kill some correspondences (using dubious algorithm) */
 		if(params->outliers_remove_doubles)
 			kill_outliers_double(params);
-		
+#if write_log
+        plog_write<LDP>("map_data_remove_doubles",params->laser_ref);
+        plog_write<LDP>("laser_data_remove_doubles",params->laser_sens);
+#endif
 		int num_corr2 = ld_num_valid_correspondences(laser_sens);
 
 		double error=0;
 		/* Trim correspondences */
 		kill_outliers_trim(params, &error);
-		int num_corr_after = ld_num_valid_correspondences(laser_sens);
+#if write_log
+        // todo : log cosrrespondence
+        plog_write<LDP>("map_data_kill_outliers",params->laser_ref);
+        plog_write<LDP>("laser_data_kill_outliers",params->laser_sens);
+#endif
+        int num_corr_after = ld_num_valid_correspondences(laser_sens);
 		
 		*total_error = error; 
 		*valid = num_corr_after;
@@ -132,9 +143,18 @@ int icp_loop(struct sm_params*params, const double*q0, double*x_new,
 		
 		copy_d(x_new, 3, x_old);
 		copy_d(delta, 3, delta_old);
-		
-		
-		egsl_pop_named("icp_loop iteration");
+
+#if write_log
+        // final transform
+        ld_compute_world_coords(laser_sens, x_new);
+        plog_write<LDP>("map_data_final",params->laser_ref);
+        plog_write<LDP>("laser_data_final",params->laser_sens);
+#endif
+
+
+
+
+        egsl_pop_named("icp_loop iteration");
 	}
 
 	*iterations = iteration+1;
@@ -182,10 +202,17 @@ int compute_next_estimate(struct sm_params*params,
 			double diff[2];
 			diff[0] = laser_ref->points[j1].p[0]-laser_ref->points[j2].p[0];
 			diff[1] = laser_ref->points[j1].p[1]-laser_ref->points[j2].p[1];
-			double one_on_norm = 1 / sqrt(diff[0]*diff[0]+diff[1]*diff[1]);
+			const double length_diff = sqrt(diff[0]*diff[0]+diff[1]*diff[1]);
 			double normal[2];
-			normal[0] = +diff[1] * one_on_norm;
-			normal[1] = -diff[0] * one_on_norm;
+			if (length_diff < 1e-10){
+				normal[0] = 1.0;
+				normal[1] = 0.0;
+			}
+			else{
+				double  one_on_norm = 1/length_diff;
+				normal[0] = +diff[1]*one_on_norm;
+				normal[1] = -diff[0]*one_on_norm;
+			}
 
 			double cos_alpha = normal[0];
 			double sin_alpha = normal[1];
@@ -309,9 +336,35 @@ int compute_next_estimate(struct sm_params*params,
 	sm_debug("\tcompute_next_estimate: new error - old_error: %g \n", new_error-old_error);
 
 	double epsilon = 0.000001;
+	double retry_error_thresh = 1000, update_thresh = 0.1;
+	int retry_cnt = 20;
 	if(new_error > old_error + epsilon) {
+//		double try_x_new[3];
+//		if (new_error < retry_error_thresh){
+//			for (int i =0;i<retry_cnt;i++){
+//				for( int j=0;j<3;j++){
+//					try_x_new[j] = x_old[j] + (rand()%(100)/1000.0 - 0.05);
+//				}
+//				double try_new_error = gpc_total_error(c, k, try_x_new);
+//				if (try_new_error<old_error + update_thresh){
+//					for( int j=0;j<3;j++){
+//						x_new[j] = try_x_new[j];
+//					}
+//					break;
+//				}
+//			}
+//		}
+//		for( int j=0;j<3;j++){
+//			x_new[j] = (fabs(x_new[j])>0.5)? x_old[j]+(rand()%(100)/10000.0 - 0.005): x_new[j]  ;
+//		}
+
+
 		sm_error("\tcompute_next_estimate: something's fishy here! Old error: %lf  new error: %lf  x_old %lf %lf %lf x_new %lf %lf %lf\n",old_error,new_error,x_old[0],x_old[1],x_old[2],x_new[0],x_new[1],x_new[2]);
-	}
+        char res_str[300];
+        sprintf(res_str,"compute_next_estimate: something's fishy here! Old error: %lf  new error: %lf  x_old %lf %lf %lf x_new %lf %lf %lf\n",old_error,new_error,x_old[0],x_old[1],x_old[2],x_new[0],x_new[1],x_new[2]);
+        LOG_WARNING<<res_str;
+
+    }
 	
 	return 1;
 }

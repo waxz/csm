@@ -1,20 +1,37 @@
 
+#if 1
+// if using plog
+#include <plog/Log.h>
+#endif
+
 #include <csm/csm_all.h>
 #include <ros/ros.h>
 #include <sensor_msgs/LaserScan.h>
 #include <string>
+#include <iostream>
+
+#include <csv_reader/reader.h>
+
 
 namespace sm=sensor_msgs;
-
-void prepare_data(LDP &ldp, double theta) {
-    ldp = ld_alloc_new(24);
-    int n = 24;
+using namespace std;
+void prepare_data(LDP &ldp, vector<vector<string> > data, int start_id) {
+    int n = data[start_id].size();
+    ldp = ld_alloc_new(n);
     for (unsigned int i = 0; i < n; i++) {
         // calculate position in laser frame
 
         // valid data
-        ldp->valid[i] = 1;
-        ldp->readings[i] = 3;
+
+        atof(data[start_id][i].c_str());
+        double r = atof(data[start_id+1][i].c_str());
+        double t = atof(data[start_id][i].c_str());
+        if (isnan(r) || isnan(t))
+            ldp->readings[i] = -1 ;
+        else
+            ldp->readings[i] = r;
+
+
 
         // invalid data
         /* ldp->valid[i] = 0
@@ -23,7 +40,9 @@ void prepare_data(LDP &ldp, double theta) {
 
 
 
-        ldp->theta[i] = i / 30.0 + theta;
+        ldp->theta[i] = atof(data[start_id ][i].c_str());
+
+
 
         ldp->cluster[i] = -1;
     }
@@ -54,6 +73,7 @@ void prepare_csm(ros::NodeHandle nh_private_, sm_params &input_) {
     if (!nh_private_.getParam("max_iterations", input_.max_iterations))
         input_.max_iterations = 10;
 
+    // used in point-to-point
     // A threshold for stopping (m)
     if (!nh_private_.getParam("epsilon_xy", input_.epsilon_xy))
         input_.epsilon_xy = 0.000001;
@@ -163,6 +183,26 @@ void prepare_csm(ros::NodeHandle nh_private_, sm_params &input_) {
 }
 
 int main(int argc, char **argv) {
+    // Creating an object of CSVWriter/home/waxz/PycharmProjects/ros_log/export.txt
+    CSVReader reader("/home/waxz/PycharmProjects/ros_log/export.txt",",");
+
+    // Get the data from CSV File
+    std::vector<std::vector<std::string> > dataList = reader.getData();
+
+    // Print the content of row by row on screen
+    for (int i=0;i<dataList.size();i++) {
+
+        for (int j = 0; j < dataList[i].size(); j++) {
+            std::cout << atof(dataList[i][j].c_str())<<std::endl;
+        }
+    }
+
+
+
+
+    plog::init(plog::verbose, "/home/waxz/log.csv", 1000000, 5);
+
+
     ros::init(argc, argv, "csm_test");
     ros::NodeHandle nh_private_("~");
 
@@ -173,8 +213,8 @@ int main(int argc, char **argv) {
     LDP ldp_in, ldp_out;
 
     // **** prepare data and parameters
-    prepare_data(ldp_in, 0.1);
-    prepare_data(ldp_out, 0.32);
+    prepare_data(ldp_in, dataList ,0);
+    prepare_data(ldp_out, dataList, 2);
     prepare_csm(nh_private_, input_);
 
     // **** fill data in input

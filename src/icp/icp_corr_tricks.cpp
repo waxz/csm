@@ -106,7 +106,7 @@ void find_correspondences_tricks(struct sm_params*params) {
 			i,from,down,start_cell,up,to));
 		
 		while ( (!up_stopped) || (!down_stopped) ) {
-			int now_up = up_stopped ? 0 : 
+			int now_up = up_stopped ? 0 :
 			           down_stopped ? 1 : last_dist_up < last_dist_down;
 			DEBUG_SEARCH(printf("|"));
 
@@ -223,7 +223,7 @@ void find_correspondences_tricks(struct sm_params*params) {
 		laser_sens->corr[i].dist2_j1 = best_dist;
 		laser_sens->corr[i].type = 
 			params->use_point_to_line_distance ? correspondence::corr_pl : correspondence::corr_pp;
-		
+
 	}
 }
 
